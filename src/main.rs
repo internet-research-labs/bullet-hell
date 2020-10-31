@@ -2,11 +2,23 @@
 // use zone::Pos;
 // use zone::Coordinate;
 
-use futures::{FutureExt, StreamExt};
+mod zone;
+mod hub;
+
+// use tokio::sync::{mpsc, RwLock};
 use warp::Filter;
+
+async fn connect(_ws: warp::ws::WebSocket, id: i64) {
+    println!("Connected... id = {}", id);
+}
 
 #[tokio::main]
 async fn main() {
+
+    // NOTE: This seems pretty sketch...
+    // Hub shouldn't be cloned for every connection (???)
+    let zzz = hub::Hub::new();
+    let zzz = warp::any().map(move || zzz.uuid());
 
     let index = warp::path::end()
         .and(warp::fs::file("www/static/index.html"));
@@ -16,15 +28,9 @@ async fn main() {
 
     let websocket = warp::path("ws")
         .and(warp::ws())
-        .map(|ws: warp::ws::Ws| {
-            ws.on_upgrade(|websocket| {
-                let (tx, rx) = websocket.split();
-                rx.forward(tx).map(|result| {
-                    if let Err(e) = result {
-                        eprintln!("websocket error: {:?}", e);
-                    }
-                })
-            })
+        .and(zzz)
+        .map(|ws: warp::ws::Ws, uuid| {
+            ws.on_upgrade(move |socket| connect(socket, uuid))
         });
 
     let statics = warp::path("static")
