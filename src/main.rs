@@ -5,12 +5,16 @@ mod hub;
 use tokio::sync::RwLock;
 
 use std::sync::Arc;
+use std::sync::mpsc;
 
 use warp::Filter;
 
-async fn connect(_ws: warp::ws::WebSocket, hub: ArcHub) {
-    let id = hub.write().await.uuid();
-    println!("Connected... {}", id)
+async fn connect(_ws: warp::ws::WebSocket, h: ArcHub) {
+    let (tx, rx): (hub::UpdateSender, hub::UpdateReceiver) = mpsc::channel();
+    let conn = h.write().await.new_conn(rx);
+
+
+    println!("Connected... {}", conn);
 }
 
 type ArcHub = Arc<RwLock<hub::Hub>>;
@@ -29,7 +33,7 @@ async fn main() {
     let websocket = warp::path("ws")
         .and(warp::ws())
         .and(warp::any().map(move || hub.clone()))
-        .map(|ws: warp::ws::Ws, h| {
+        .map(|ws: warp::ws::Ws, h: ArcHub| {
             ws.on_upgrade(move |websocket| connect(websocket, h))
         });
 
