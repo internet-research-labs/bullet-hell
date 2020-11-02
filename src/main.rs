@@ -1,20 +1,44 @@
 mod zone;
 mod hub;
 
-// use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
+use futures::{FutureExt, StreamExt};
 use std::sync::Arc;
-use std::sync::mpsc;
 
 use warp::Filter;
-
-async fn connect(_ws: warp::ws::WebSocket, h: ArcHub) {
-    let (tx, rx): (hub::UpdateSender, hub::UpdateReceiver) = mpsc::channel();
-    let conn = h.write().await.new_conn(rx);
+use warp::ws::Message;
 
 
-    println!("Connected... {}", conn);
+type SocketSender = mpsc::UnboundedSender<Result<Message, warp::Error>>;
+
+/// ...
+/// ...
+async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
+
+    let _conn = h.write().await.new_conn();
+
+    let (user_ws_tx, _user_ws_rx) = socket.split();
+
+    let (tx, rx) = mpsc::unbounded_channel();
+
+    tokio::task::spawn(rx.forward(user_ws_tx).map(|result| {
+        if let Err(e) = result {
+            eprintln!("websocket send error: {}", e);
+        }
+    }));
+
+    loop {
+        tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+        send(tx.clone()).await;
+    }
+
+    println!("CLOSED!")
+}
+
+async fn send(tx: SocketSender) {
+    let _ = tx.send(Ok(Message::text("!!!")));
 }
 
 type ArcHub = Arc<RwLock<hub::Hub>>;
@@ -23,6 +47,7 @@ type ArcHub = Arc<RwLock<hub::Hub>>;
 async fn main() {
 
     let hub = ArcHub::default();
+    let hub = warp::any().map(move || hub.clone());
 
     let index = warp::path::end()
         .and(warp::fs::file("www/static/index.html"));
@@ -32,7 +57,7 @@ async fn main() {
 
     let websocket = warp::path("ws")
         .and(warp::ws())
-        .and(warp::any().map(move || hub.clone()))
+        .and(hub)
         .map(|ws: warp::ws::Ws, h: ArcHub| {
             ws.on_upgrade(move |websocket| connect(websocket, h))
         });
