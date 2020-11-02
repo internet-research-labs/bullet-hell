@@ -1,19 +1,18 @@
 var socket = new WebSocket('ws://localhost:8080/ws');
 
-function message(s) {
-  var el = document.getElementById("what");
+function message(id, s) {
+  var el = document.getElementById(id);
   el.innerHTML += s + "<br>";
 }
 
 socket.addEventListener("open", function (ev) {
   setInterval(function() {
-    // var rand = "" + Math.random();
-    // socket.send(rand);
-    // message(rand);
+    var rand = "" + Math.random();
+    socket.send(rand);
+    message("sent", rand);
   }, 1000);
 });
 
 socket.addEventListener("message", function (ev) {
-  console.log("Received2:", ev.data);
-  message(ev.data);
+  message("received", ev.data);
 });

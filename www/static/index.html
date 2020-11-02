@@ -2,9 +2,45 @@
 <html>
   <head>
     <title>Bullet Hell MMO Game</title>
+    <style>
+    html, body {
+      font-size: 12pt;
+      font-family: sans-serif;
+      background-color: #333;
+      color: #CCC;
+    }
+
+    #sent-wrapper, #received-wrapper {
+      font-family: monospace;
+      display: inline-block;
+      width: 400px;
+      vertical-align: top;
+    }
+
+    #sent-wrapper {
+      margin-right: 4em;
+    }
+
+    #sent-wrapper h2, #received-wrapper h2 {
+      border-bottom: solid 3px #CCC;
+      margin: 0 0 0.5em 0;
+      padding: 0;
+    }
+
+    </style>
   </head>
   <body>
-    <div id="what"></div>
+
+    <div id="sent-wrapper">
+      <h2>Sent</h2>
+      <div id="sent"></div>
+    </div>
+
+    <div id="received-wrapper">
+      <h2>Received</h2>
+      <div id="received"></div>
+    </div>
+
     <script src="/static/index.js"></script>
   </body>
 </html>

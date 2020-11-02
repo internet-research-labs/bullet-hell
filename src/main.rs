@@ -4,7 +4,7 @@ mod hub;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, join};
 use std::sync::Arc;
 
 use warp::Filter;
@@ -13,40 +13,63 @@ use warp::ws::Message;
 
 type SocketSender = mpsc::UnboundedSender<Result<Message, warp::Error>>;
 
-/// ...
+/// Handle user connected:
+/// 1. Register user with Hub
+/// 2. Setup rx for game updates
+/// 3. Setup tx for user inputs
 /// ...
 async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
 
-    let _conn = h.write().await.new_conn();
+    let (user_ws_tx, mut user_ws_rx) = socket.split();
 
-    let (user_ws_tx, _user_ws_rx) = socket.split();
+    let (update_tx, update_rx) = mpsc::unbounded_channel();
 
-    let (tx, rx) = mpsc::unbounded_channel();
+    let conn = h.write().await.new_conn(update_tx.clone());
 
-    tokio::task::spawn(rx.forward(user_ws_tx).map(|result| {
+    let id = conn.id;
+
+    // Send game updates to the user
+    tokio::task::spawn(update_rx.forward(user_ws_tx).map(move |result| {
         if let Err(e) = result {
-            eprintln!("websocket send error: {}", e);
+            eprintln!("[{}] websocket send error: {}", id, e);
         }
     }));
 
-    loop {
-        tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
-        send(tx.clone()).await;
+    // Receive game updates from the user
+    while let Some(result) = user_ws_rx.next().await {
+        let msg = match result {
+            Ok(msg) => {
+                let msg = if let Ok(s) = msg.to_str() {
+                    // NOTE: This is the important part of this loop
+                    s
+                } else {
+                    break;
+                };
+            }
+            Err(e) => {
+                break;
+            },
+        };
     }
 
-    println!("CLOSED!")
-}
-
-async fn send(tx: SocketSender) {
-    let _ = tx.send(Ok(Message::text("!!!")));
+    println!("Clossing connection: {}", id)
 }
 
 type ArcHub = Arc<RwLock<hub::Hub>>;
+
+async fn game_updates(h: ArcHub) {
+    loop {
+        h.read().await.broadcast("Something");
+        tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+    }
+}
 
 #[tokio::main]
 async fn main() {
 
     let hub = ArcHub::default();
+    let fin = game_updates(hub.clone());
+
     let hub = warp::any().map(move || hub.clone());
 
     let index = warp::path::end()
@@ -68,7 +91,8 @@ async fn main() {
     // Compose all routes
     let routes = index.or(favicon).or(websocket).or(statics);
 
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 8080))
-        .await;
+    let server = warp::serve(routes)
+        .run(([127, 0, 0, 1], 8080));
+
+    join!(server, fin);
 }

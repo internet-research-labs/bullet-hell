@@ -20,7 +20,7 @@ pub type ConnectionMap = HashMap<i64, UpdateSender>;
 #[derive(Clone)]
 pub struct HubConn {
     pub id: i64,
-    // inputs: UpdateSender,
+    pub tx: UpdateSender,
 }
 
 impl HubConn {
@@ -80,12 +80,28 @@ impl Hub {
     /// use hub::Hub;
     /// assert!(false);
     /// ```
-    pub fn new_conn(&mut self) -> HubConn {
+    pub fn new_conn(&mut self, tx: UpdateSender) -> HubConn {
         let id = self.uuid();
+
+        let (tx, rx) = mpsc::unbounded_channel();
+
+        self.conns.insert(id, tx.clone());
+
         HubConn {
             id: id,
-            // XXX: Figure this out later
-            // inputs: sender,
+            tx: tx,
+        }
+    }
+
+    /// Send a message to every connected user.
+    /// NOTE: In go you'd just have a channel working as fast as possible, and this probably will
+    /// have an issue later in the project, but is fine for now.
+    pub fn broadcast(&self, message: &str) {
+        println!("len => {}", self.conns.len());
+        for (&id, tx) in self.conns.iter() {
+            if let Err(e) = tx.send(Ok(warp::ws::Message::text("???"))) {
+                println!("ERROR[{}]: {}", id, e);
+            }
         }
     }
 }
