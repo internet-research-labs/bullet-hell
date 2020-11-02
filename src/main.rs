@@ -1,6 +1,7 @@
 mod zone;
 mod hub;
 
+use rand::Rng;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
@@ -58,8 +59,10 @@ async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
 type ArcHub = Arc<RwLock<hub::Hub>>;
 
 async fn game_updates(h: ArcHub) {
+    let mut rng = rand::thread_rng();
     loop {
-        h.read().await.broadcast("Something");
+        let r: u64 = rng.gen();
+        h.read().await.broadcast(r.to_string());
         tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
     }
 }
