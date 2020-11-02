@@ -9,10 +9,7 @@ use futures::{FutureExt, StreamExt, join};
 use std::sync::Arc;
 
 use warp::Filter;
-use warp::ws::Message;
 
-
-type SocketSender = mpsc::UnboundedSender<Result<Message, warp::Error>>;
 
 /// Handle user connected:
 /// 1. Register user with Hub
@@ -37,16 +34,16 @@ async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
 
     // TODO: Lift this out, but also explain it better
     while let Some(result) = user_ws_rx.next().await {
-        let msg = match result {
+        let _msg = match result {
             Ok(msg) => {
-                let msg = if let Ok(s) = msg.to_str() {
+                let _msg = if let Ok(s) = msg.to_str() {
                     // NOTE: This is the important part of this loop
                     s
                 } else {
                     break;
                 };
             }
-            Err(e) => {
+            Err(_) => {
                 break;
             },
         };

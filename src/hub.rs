@@ -48,6 +48,7 @@ pub struct Hub {
 
 impl Hub {
 
+    /*
     /// Returns a new communication "Hub".
     /// ```
     /// use hub::Hub;
@@ -60,6 +61,7 @@ impl Hub {
             conns: ConnectionMap::default(),
         }
     }
+    */
 
     /// Returns a unique identifier. This will be deprecated (and encapsulated) within `new_conn`.
     /// ```
@@ -95,7 +97,9 @@ impl Hub {
 
         self.conns.insert(id, tx.clone());
 
-        let (tx, rx) = mpsc::unbounded_channel();
+        // NOTE: We are receiving updates on rx, but not doing anything with it...
+        // XXX: Start here
+        let (tx, _rx) = mpsc::unbounded_channel();
 
         HubConn {
             id: id,
