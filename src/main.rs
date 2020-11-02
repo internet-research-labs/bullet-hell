@@ -29,14 +29,13 @@ async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
 
     let id = conn.id;
 
-    // Send game updates to the user
     tokio::task::spawn(update_rx.forward(user_ws_tx).map(move |result| {
         if let Err(e) = result {
             eprintln!("[{}] websocket send error: {}", id, e);
         }
     }));
 
-    // Receive game updates from the user
+    // TODO: Lift this out, but also explain it better
     while let Some(result) = user_ws_rx.next().await {
         let msg = match result {
             Ok(msg) => {
@@ -53,6 +52,7 @@ async fn connect(socket: warp::ws::WebSocket, h: ArcHub) {
         };
     }
 
+    h.write().await.remove(id);
     println!("Clossing connection: {}", id)
 }
 

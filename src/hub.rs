@@ -76,6 +76,15 @@ impl Hub {
         //    .try_into().unwrap()
     }
 
+    /// Removes a connection via uuid.
+    /// ```
+    /// use hub::Hub;
+    /// h.remove(&10);
+    /// ```
+    pub fn remove(&mut self, id: i64) {
+        self.conns.remove(&id);
+    }
+
     /// Returns a two-way connection to this Hub.
     /// ```
     /// use hub::Hub;
