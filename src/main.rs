@@ -1,5 +1,6 @@
 mod fake;
 mod zone;
+mod gol;
 
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
@@ -7,34 +8,45 @@ use tokio::sync::RwLock;
 use futures::{FutureExt, StreamExt, join};
 
 use warp::Filter;
+use gol::World as _WorldTrait;
 
-
-struct World {
-    f: f64,
-}
 
 /// UPDATES
 async fn updates(walkie: fake::Walkie, users: fake::Users) {
 
+    const DUR: std::time::Duration = std::time::Duration::from_millis(1000);
+
     // Shared between the read and write queue
-    let w = RwLock::new(World{f: 0.0});
+    let w = gol::GameOfLife::with_size(100, 100);
+    let w = RwLock::new(w);
 
     // Send to async loop
     let _tx = walkie.tx.clone();
 
+    let ticker = async {
+        loop {
+            {
+                w.write().await.tick();
+            }
+            tokio::time::delay_for(DUR).await;
+        }
+    };
+
     let fin = async {
         loop {
 
-            {   // Braces around this are necessary to top the lock
-                let w = w.read().await;
-                for (_, tx) in users.write().await.iter() {
-                    if let Err(e) = tx.send(Ok(warp::ws::Message::text(w.f.to_string()))) {
-                        println!("ERROR: {}", e);
-                    }
+            let update_msg = {
+                w.read().await.to_string()
+            };
+
+            for (_, tx) in users.write().await.iter() {
+                let m = update_msg.clone();
+                if let Err(e) = tx.send(Ok(warp::ws::Message::text(m))) {
+                    println!("ERROR: {}", e);
                 }
             }
 
-            tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
+            tokio::time::delay_for(DUR).await;
         }
     };
 
@@ -43,16 +55,15 @@ async fn updates(walkie: fake::Walkie, users: fake::Users) {
 
     let modifier = async {
         while let Some(msg) = rx.next().await {
-            let f = msg.parse::<f64>().ok().unwrap();
-            let mut w = w.write().await;
-            w.f += f;
-            println!("RX+{}: {}", f, w.f);
+            let w = w.write().await;
+            w.update(msg);
         }
     };
 
     join!(
         fin,
         modifier,
+        ticker,
     );
 }
 
