@@ -24,10 +24,14 @@ async fn updates(walkie: fake::Walkie, users: fake::Users) {
 
     let fin = async {
         loop {
-            let w = w.read().await;
 
-            for (_, tx) in users.write().await.iter() {
-                tx.send(Ok(warp::ws::Message::text(w.f.to_string())));
+            {   // Braces around this are necessary to top the lock
+                let w = w.read().await;
+                for (_, tx) in users.write().await.iter() {
+                    if let Err(e) = tx.send(Ok(warp::ws::Message::text(w.f.to_string()))) {
+                        println!("ERROR: {}", e);
+                    }
+                }
             }
 
             tokio::time::delay_for(std::time::Duration::from_secs(1)).await;
@@ -52,6 +56,10 @@ async fn updates(walkie: fake::Walkie, users: fake::Users) {
     );
 }
 
+use std::sync::atomic::{AtomicI64, Ordering};
+
+static UUID: AtomicI64 = AtomicI64::new(1);
+
 /// Handle user connected:
 /// 1. Register user with Hub
 /// 2. Setup rx for game updates
@@ -59,11 +67,13 @@ async fn updates(walkie: fake::Walkie, users: fake::Users) {
 /// ...
 async fn fake_connect(socket: warp::ws::WebSocket, to_game: mpsc::UnboundedSender<String>, users: fake::Users) {
 
+    let uuid = UUID.fetch_add(1, Ordering::Relaxed);
+
     let (user_ws_tx, mut user_ws_rx) = socket.split();
 
     let (update_tx, update_rx) = mpsc::unbounded_channel();
 
-    users.write().await.insert(0, update_tx.clone());
+    users.write().await.insert(uuid, update_tx.clone());
 
     tokio::task::spawn(update_rx.forward(user_ws_tx).map(move |result| {
         println!("...");
@@ -77,16 +87,22 @@ async fn fake_connect(socket: warp::ws::WebSocket, to_game: mpsc::UnboundedSende
         let _ = match result {
             Ok(msg) => {
                 let _msg = if let Ok(s) = msg.to_str() {
-                    to_game.send(s.to_string());
+                    if let Err(e) = to_game.send(s.to_string()) {
+                        println!("Error: {}", e);
+                    }
                 } else {
+                    println!("!!!!");
                     break;
                 };
             },
             Err(_) => {
+                println!("????");
                 break;
             },
         };
     }
+
+    users.write().await.remove(&uuid);
 }
 
 #[tokio::main]
