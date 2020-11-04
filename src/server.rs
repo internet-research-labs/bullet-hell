@@ -198,7 +198,7 @@ async fn main() {
         .or(statics);
 
     let server = warp::serve(routes)
-        .run(([127, 0, 0, 1], p));
+        .run(([0, 0, 0, 0], p));
 
     join!(
         server,
