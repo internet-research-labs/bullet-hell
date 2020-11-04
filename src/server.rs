@@ -92,9 +92,9 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
             let up = {
                 let mut w = w_tick.write().await;
                 w.tick();
-                let r = w.to_string();
-                r
+                w.to_string()
             };
+
             tx.send(up).unwrap();
 
             let d = timer.elapsed();
