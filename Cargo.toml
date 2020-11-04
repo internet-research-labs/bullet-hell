@@ -17,7 +17,3 @@ warp = "0.2"
 [[bin]]
 name = "server"
 path = "src/server.rs"
-
-[[bin]]
-name = "sample"
-path = "src/sample.rs"

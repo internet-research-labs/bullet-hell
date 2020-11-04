@@ -34,9 +34,9 @@ var elapsed = (function() {
 
 socket.addEventListener("message", function (ev) {
   console.log("elapsed:", elapsed());
-  // message("received", ev.data.substring(100, 140) + "...");
-  // var msg = JSON.parse(ev.data);
-  // render_table(msg);
+  message("received", ev.data.substring(100, 140) + "...");
+  var msg = JSON.parse(ev.data);
+  render_table(msg);
 });
 
 socket.addEventListener("close", function (ev) {
