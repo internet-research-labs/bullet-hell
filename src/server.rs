@@ -33,10 +33,10 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
 
     let (update_tx, update_rx) = tmpsc::unbounded_channel();
 
+    println!("Connected: {}", uuid);
     users.write().await.insert(uuid, update_tx.clone());
 
     tokio::task::spawn(update_rx.forward(user_ws_tx).map(move |result| {
-        println!("...");
         if let Err(e) = result {
             eprintln!("[{}] websocket send error: {}", "-", e);
         }
@@ -51,17 +51,16 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
                         println!("Error: {}", e);
                     }
                 } else {
-                    println!("!!!!");
                     break;
                 };
             },
             Err(_) => {
-                println!("????");
                 break;
             },
         };
     }
 
+    println!("Disconnected: {}", uuid);
     users.write().await.remove(&uuid);
 }
 
