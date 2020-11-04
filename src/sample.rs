@@ -3,7 +3,7 @@ mod zone;
 mod gol;
 
 use std::sync::Arc;
-use std::sync::mpsc;
+// use std::sync::mpsc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use tokio::sync::mpsc as tmpsc;
@@ -15,8 +15,10 @@ use warp::Filter;
 use gol::World as _WorldTrait;
 
 
+const DUR: std::time::Duration = std::time::Duration::from_millis(33);
 
 static UUID: AtomicI64 = AtomicI64::new(1);
+
 
 /// Handle user connected:
 /// 1. Register user with Hub
@@ -63,49 +65,20 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
     users.write().await.remove(&uuid);
 }
 
-
-/// Process updates
-async fn updates(users: fake::Users, mut rx: tmpsc::UnboundedReceiver<String>) {
-    while let Some(msg) = rx.next().await {
-        for (_, tx) in users.write().await.iter() {
-            let m = msg.clone();
-            if let Err(e) = tx.send(Ok(warp::ws::Message::text(m))) {
-                println!("ERROR: {}", e);
-            }
-        }
-    }
-}
-
 /// Return an update channel for the world in a different process!
-fn world_loop() -> (mpsc::Sender<String>, mpsc::Receiver<String>) {
-    mpsc::channel()
-}
-
-
-const DUR: std::time::Duration = std::time::Duration::from_millis(1000);
-
-
-#[tokio::main]
-async fn main() {
-
-    // Shared between the read and write queue
-    // let w = gol::GameOfLife::with_size(100, 100);
-
-    // XXX: Later use this to send updates to players + receiver updates from players
-    let (_, _) = world_loop();
+fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
 
     let users = fake::Users::default();
-    let u = users.clone();
 
 
     // Share between spawned processes
     let w = gol::GameOfLife::with_size(100, 100);
     let w = Arc::new(TokioRwLock::new(w));
-    let (tx, rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
+    let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
 
     // Tick loop
     let w_tick = w.clone();
-    tokio::task::spawn(async move {
+    tokio::spawn(async move {
         loop {
             let up = {
                 let mut w = w_tick.write().await;
@@ -118,12 +91,44 @@ async fn main() {
     });
 
     // Send to users loop
-    tokio::task::spawn(async move {
-        updates(u, rx).await;
+    let u = users.clone();
+    tokio::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            for (_, tx) in u.write().await.iter() {
+                let m = msg.clone();
+                if let Err(e) = tx.send(Ok(warp::ws::Message::text(m))) {
+                    println!("ERROR: {}", e);
+                }
+            }
+        }
     });
 
+    // Read inputs from users
+    let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
+    let w_update = w.clone();
+    tokio::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            let w = w_update.write().await;
+            let m = msg.clone();
+            w.update(m);
+        }
+    });
 
-    let (_walkie, tx, _rx) = fake::Walkie::gen();
+    (
+        tx,
+        users.clone(),
+    )
+}
+
+
+#[tokio::main]
+async fn main() {
+
+    // Shared between the read and write queue
+    // let w = gol::GameOfLife::with_size(100, 100);
+
+    // XXX: Later use this to send updates to players + receiver updates from players
+    let (tx, users) = world_loop();
     let usr = warp::any().map(move || users.clone());
     let com = warp::any().map(move || tx.clone());
 
