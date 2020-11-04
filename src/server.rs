@@ -2,6 +2,8 @@ mod fake;
 mod zone;
 mod gol;
 
+use std::env;
+
 use std::sync::Arc;
 // use std::sync::mpsc;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -138,6 +140,33 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
 #[tokio::main]
 async fn main() {
 
+    let args:Vec<String> = env::args().collect();
+
+    let p: u16;
+    let port: Result<String, _> = args[1].parse();
+
+    // XXX: Yikes! Clean this up
+    if args.len() < 2 {
+        p = 8080;
+    } else {
+
+        match port {
+            Ok(m) => {
+                p = m.parse::<u16>().unwrap();
+            },
+            Err(_) => {
+                println!("Fail!");
+                return;
+            },
+        }
+    }
+
+
+    println!("BULLET-HELL!");
+    println!("============");
+    println!("port .... {}", p);
+    println!("");
+
     // Shared between the read and write queue
     // let w = gol::GameOfLife::with_size(100, 100);
 
@@ -169,7 +198,7 @@ async fn main() {
         .or(statics);
 
     let server = warp::serve(routes)
-        .run(([127, 0, 0, 1], 8080));
+        .run(([127, 0, 0, 1], p));
 
     join!(
         server,
