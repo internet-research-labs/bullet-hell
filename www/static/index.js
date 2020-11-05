@@ -1,7 +1,7 @@
 
 console.log("x_x");
 
-var socket = new WebSocket('ws://localhost:8080/ws');
+var socket = new WebSocket("ws://" + location.host + "/ws");
 
 var interval;
 
