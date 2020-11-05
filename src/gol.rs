@@ -1,11 +1,14 @@
+use rand::Rng;
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::vec::Vec;
 
-use rand::Rng;
+use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 
-use serde::{Serialize, Deserialize};
-use serde_json::json;
+pub type UpdateSender = mpsc::UnboundedSender<Result<warp::ws::Message, warp::Error>>;
+pub type Users = Arc<RwLock<HashMap<i64, UpdateSender>>>;
 
-#[derive(Serialize, Deserialize)]
 pub struct GameOfLife {
     grid: Vec<bool>,
     dims: (usize, usize),
@@ -19,21 +22,27 @@ impl GameOfLife {
         let mut g = Vec::with_capacity(h*w);
         g.resize_with(h*w, Default::default);
 
+        let mut game = GameOfLife{
+            grid: g,
+            dims: (h, w),
+        };
 
+        game.randomize();
+
+        game
+    }
+
+    pub fn randomize(&mut self) {
         let mut rng = rand::thread_rng();
-
+        let (h, w) = self.dims;
         for i in 0..h {
             for j in 0..w {
                 let r: f64 = rng.gen_range(0.0, 1.0);
                 if r < 0.5 {
-                    g[h*i+j] = true;
+                    let p = self.pos(i, j);
+                    self.grid[p] = true;
                 }
             }
-        }
-
-        GameOfLife{
-            grid: g,
-            dims: (h, w),
         }
     }
 
@@ -71,7 +80,52 @@ impl GameOfLife {
 
     /// Return the GOL as a json-string.
     pub fn to_string(&self) -> String {
-        json!(self).to_string()
+
+
+
+        let mut c = '?';
+        let mut s = String::from("");
+        s.push_str(format!("{}:{}", self.dims.0, self.dims.1).as_str());
+
+        let mut run = 1;
+        let mut last = self.grid[0];
+
+        for i in 1..self.grid.len() {
+
+            let curr = self.grid[i];
+
+            c = if last {
+                'o'
+            } else {
+                'x'
+            };
+
+            if curr != last {
+
+                s.push_str(format!(":{},{}", run, c).as_str());
+                last = curr;
+                run = 1;
+            } else {
+                run = run + 1;
+            }
+        }
+
+        s.push_str(format!(":{},{}", run, c).as_str());
+
+
+
+        /*
+        for i in 0..self.grid.len() {
+            s.push(':');
+            if self.grid[i] {
+                s.push('1');
+            } else {
+                s.push('0');
+            }
+        }
+        */
+
+        s
     }
 }
 
