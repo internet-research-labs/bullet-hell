@@ -87,11 +87,18 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
     // Tick loop
     let w_tick = w.clone();
     tokio::spawn(async move {
+        let mut i = 0;
         loop {
             let timer = std::time::Instant::now();
 
             let up = {
                 let mut w = w_tick.write().await;
+                // ~2min
+                i = (i+1) % (5*60*2);
+
+                if i == 0 {
+                    w.randomize();
+                }
                 w.tick();
                 w.to_string()
             };

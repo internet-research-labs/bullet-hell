@@ -19,21 +19,27 @@ impl GameOfLife {
         let mut g = Vec::with_capacity(h*w);
         g.resize_with(h*w, Default::default);
 
+        let mut game = GameOfLife{
+            grid: g,
+            dims: (h, w),
+        };
 
+        game.randomize();
+
+        game
+    }
+
+    pub fn randomize(&mut self) {
         let mut rng = rand::thread_rng();
-
+        let (h, w) = self.dims;
         for i in 0..h {
             for j in 0..w {
                 let r: f64 = rng.gen_range(0.0, 1.0);
                 if r < 0.5 {
-                    g[h*i+j] = true;
+                    let p = self.pos(i, j);
+                    self.grid[p] = true;
                 }
             }
-        }
-
-        GameOfLife{
-            grid: g,
-            dims: (h, w),
         }
     }
 
