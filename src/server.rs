@@ -85,7 +85,7 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, gol::Users) {
 
 
     // Share between spawned processes
-    let w = gol::GameOfLife::with_size(30, 30);
+    let w = gol::GameOfLife::with_size(100, 100);
     let w = Arc::new(TokioRwLock::new(w));
     let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
 
