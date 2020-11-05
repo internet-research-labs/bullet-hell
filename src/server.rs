@@ -90,12 +90,9 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
     tokio::spawn(async move {
         let mut i = 0;
 
-        let mut tick = since::Timer::now();
-
         // This loop runs at [50, 55) millis (which is very close to DUR)
         loop {
             let timer = std::time::Instant::now();
-            println!("tick elapsed... {} millis", tick.elapsed().as_millis());
 
             let up = {
                 let mut w = w_tick.write().await;
@@ -122,7 +119,10 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
     // Send to users loop
     let u = users.clone();
     tokio::spawn(async move {
+
+        let mut tick = since::Timer::now();
         while let Some(msg) = rx.next().await {
+            println!("tick elapsed... {} millis", tick.elapsed().as_millis());
             for (_, tx) in u.write().await.iter() {
                 let m = msg.clone();
                 if let Err(e) = tx.send(Ok(warp::ws::Message::text(m))) {
