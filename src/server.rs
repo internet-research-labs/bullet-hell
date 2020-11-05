@@ -90,9 +90,12 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
     tokio::spawn(async move {
         let mut i = 0;
 
+        let mut tick = since::Timer::now();
+
         // This loop runs at [50, 55) millis (which is very close to DUR)
         loop {
             let timer = std::time::Instant::now();
+            println!("tick elapsed... {} millis", tick.elapsed().as_millis());
 
             let up = {
                 let mut w = w_tick.write().await;
@@ -129,21 +132,19 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
         }
     });
 
-    // let mut tick = since::Timer::now();
-    // println!("tick elapsed... {} millis", tick.elapsed().as_millis());
-
     // Read inputs from users
     let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
-    /*
     let w_update = w.clone();
+    
+    // Receive updates from game
     tokio::spawn(async move {
         while let Some(msg) = rx.next().await {
             let w = w_update.write().await;
             let m = msg.clone();
+
             w.update(m);
         }
     });
-    */
 
     (
         tx,
