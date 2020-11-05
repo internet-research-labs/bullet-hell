@@ -1,6 +1,7 @@
 mod fake;
 mod zone;
 mod gol;
+mod since;
 
 use std::env;
 
@@ -46,9 +47,9 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
 
     // Player -> World
     while let Some(result) = user_ws_rx.next().await {
-        let _ = match result {
+        match result {
             Ok(msg) => {
-                let _msg = if let Ok(s) = msg.to_str() {
+                if let Ok(s) = msg.to_str() {
                     if let Err(e) = to_game.send(s.to_string()) {
                         println!("Error: {}", e);
                     }
@@ -88,6 +89,8 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
     let w_tick = w.clone();
     tokio::spawn(async move {
         let mut i = 0;
+
+        // This loop runs at [50, 55) millis (which is very close to DUR)
         loop {
             let timer = std::time::Instant::now();
 
@@ -126,8 +129,12 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
         }
     });
 
+    // let mut tick = since::Timer::now();
+    // println!("tick elapsed... {} millis", tick.elapsed().as_millis());
+
     // Read inputs from users
     let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
+    /*
     let w_update = w.clone();
     tokio::spawn(async move {
         while let Some(msg) = rx.next().await {
@@ -136,6 +143,7 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, fake::Users) {
             w.update(m);
         }
     });
+    */
 
     (
         tx,
