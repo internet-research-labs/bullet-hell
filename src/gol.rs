@@ -81,9 +81,39 @@ impl GameOfLife {
     /// Return the GOL as a json-string.
     pub fn to_string(&self) -> String {
 
+
+
+        let mut c = '?';
         let mut s = String::from("");
         s.push_str(format!("{}:{}", self.dims.0, self.dims.1).as_str());
 
+        let mut run = 1;
+        let mut last = self.grid[0];
+
+        for i in 1..self.grid.len() {
+
+            let curr = self.grid[i];
+
+            if curr != last {
+                c = if last {
+                    'o'
+                } else {
+                    'x'
+                };
+
+                s.push_str(format!(":{},{}", run, c).as_str());
+                last = curr;
+                run = 1;
+            } else {
+                run = run + 1;
+            }
+        }
+
+        s.push_str(format!(":{},{}", run, c).as_str());
+
+
+
+        /*
         for i in 0..self.grid.len() {
             s.push(':');
             if self.grid[i] {
@@ -92,6 +122,7 @@ impl GameOfLife {
                 s.push('0');
             }
         }
+        */
 
         s
     }
