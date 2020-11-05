@@ -94,12 +94,13 @@ impl GameOfLife {
 
             let curr = self.grid[i];
 
+            c = if last {
+                'o'
+            } else {
+                'x'
+            };
+
             if curr != last {
-                c = if last {
-                    'o'
-                } else {
-                    'x'
-                };
 
                 s.push_str(format!(":{},{}", run, c).as_str());
                 last = curr;
