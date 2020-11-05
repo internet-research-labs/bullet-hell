@@ -1,9 +1,16 @@
-use std::vec::Vec;
-
 use rand::Rng;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::vec::Vec;
 
 use serde::{Serialize, Deserialize};
 use serde_json::json;
+
+use tokio::sync::RwLock;
+use tokio::sync::mpsc;
+
+pub type UpdateSender = mpsc::UnboundedSender<Result<warp::ws::Message, warp::Error>>;
+pub type Users = Arc<RwLock<HashMap<i64, UpdateSender>>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct GameOfLife {
