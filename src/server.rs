@@ -37,13 +37,14 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
     users.write().await.insert(uuid, update_tx.clone());
 
     let mut tick = since::Timer::now();
-    println!("Elapsed ... {}", tick.elapsed().as_millis());
 
     // Game -> User
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
-            if let Err(e) = user_ws_tx.send(result.unwrap()).await {
-                eprintln!("Error: {}", e);
+            if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
+                println!("Elapsed ... {}", tick.elapsed().as_millis());
+            } else {
+                eprintln!("Error!");
             }
         }
     });

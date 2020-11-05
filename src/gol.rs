@@ -3,16 +3,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use serde::{Serialize, Deserialize};
-use serde_json::json;
-
 use tokio::sync::RwLock;
 use tokio::sync::mpsc;
 
 pub type UpdateSender = mpsc::UnboundedSender<Result<warp::ws::Message, warp::Error>>;
 pub type Users = Arc<RwLock<HashMap<i64, UpdateSender>>>;
 
-#[derive(Serialize, Deserialize)]
 pub struct GameOfLife {
     grid: Vec<bool>,
     dims: (usize, usize),
@@ -84,7 +80,20 @@ impl GameOfLife {
 
     /// Return the GOL as a json-string.
     pub fn to_string(&self) -> String {
-        json!(self).to_string()
+
+        let mut s = String::from("");
+        s.push_str(format!("{}:{}", self.dims.0, self.dims.1).as_str());
+
+        for i in 0..self.grid.len() {
+            s.push(':');
+            if self.grid[i] {
+                s.push('1');
+            } else {
+                s.push('0');
+            }
+        }
+
+        s
     }
 }
 

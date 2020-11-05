@@ -35,8 +35,16 @@ var elapsed = (function() {
 socket.addEventListener("message", function (ev) {
   console.log("elapsed:", elapsed());
   message("received", ev.data.substring(100, 140) + "...");
-  var msg = JSON.parse(ev.data);
-  render_table(msg);
+
+  var lis = ev.data.split(":");
+
+  let o = {
+    "dims": lis.slice(0, 2),
+    "grid": lis.slice(2),
+  };
+
+  // var msg = JSON.parse(ev.data);
+  render_table(o);
 });
 
 socket.addEventListener("close", function (ev) {
@@ -49,8 +57,8 @@ function render_table(msg) {
   var el = document.getElementById("game");
   var table = document.createElement("table");
 
-  var w = msg.dims[0];
-  var h = msg.dims[1];
+  var h = msg.dims[0];
+  var w = msg.dims[1];
 
   function pos(i, j) {
     return msg.grid[h*i + j];
@@ -65,7 +73,7 @@ function render_table(msg) {
       var td = document.createElement("td");
       tr.appendChild(td);
 
-      td.className = pos(i, j) ? "alive" : "dead";
+      td.className = pos(i, j) == 1 ? "alive" : "dead";
     }
   }
 
