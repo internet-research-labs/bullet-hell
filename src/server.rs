@@ -49,22 +49,40 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
         }
     });
 
+    // User -> Game call + response
+
     // User -> Game
     while let Some(result) = user_ws_rx.next().await {
-        match result {
-            Ok(msg) => {
-                if let Ok(s) = msg.to_str() {
-                    if let Err(e) = to_game.send(s.to_string()) {
-                        eprintln!("Error: {}", e);
-                    }
-                } else {
-                    break;
-                };
-            },
-            Err(_) => {
+
+        let s = match result {
+            Err(e) => {
+                eprintln!("{}", e);
                 break;
             },
+            Ok(m) => {
+                m
+            },
         };
+
+        let s = match s.to_str() {
+            Err(_) => {
+                continue;
+            },
+            Ok(s) => {
+                s
+            },
+        };
+
+        match s {
+            "*" => { // Send update to user
+                println!("COOOL BREANS");
+            },
+            _ => { // Send to game
+                if let Err(e) = to_game.send(s.to_string()) {
+                    println!("Error: {}", e);
+                }
+            },
+        }
     }
 
     println!("Disconnected: {}", uuid);
