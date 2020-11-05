@@ -142,24 +142,26 @@ async fn main() {
 
     let args:Vec<String> = env::args().collect();
 
+    if args.len() < 3 {
+        eprintln!("len(args) != 3");
+        return;
+    }
+
     let p: u16;
     let port: Result<String, _> = args[1].parse();
 
     // XXX: Yikes! Clean this up
-    if args.len() < 2 {
-        p = 8080;
-    } else {
-
-        match port {
-            Ok(m) => {
-                p = m.parse::<u16>().unwrap();
-            },
-            Err(_) => {
-                println!("Fail!");
-                return;
-            },
-        }
+    match port {
+        Ok(m) => {
+            p = m.parse::<u16>().unwrap();
+        },
+        Err(_) => {
+            println!("Fail!");
+            return;
+        },
     }
+
+    let path = args[2].parse::<String>().unwrap();
 
 
     println!("BULLET-HELL!");
@@ -175,11 +177,14 @@ async fn main() {
     let usr = warp::any().map(move || users.clone());
     let com = warp::any().map(move || tx.clone());
 
+    let q = path.clone();
+    println!("{}", q);
     let index = warp::path::end()
-        .and(warp::fs::file("www/static/index.html"));
+        .and(warp::fs::file(q + "/index.html"));
 
+    let q = path.clone();
     let favicon = warp::path("favicon.ico")
-        .and(warp::fs::file("www/static/favicon.ico"));
+        .and(warp::fs::file(q + "/favicon.ico"));
 
     let websocket = warp::path("ws")
         .and(warp::ws())
@@ -189,8 +194,9 @@ async fn main() {
             ws.on_upgrade(move |websocket| connect(websocket, c, u))
         });
 
+    let q = path.clone();
     let statics = warp::path("static")
-        .and(warp::fs::dir("www/static"));
+        .and(warp::fs::dir(q));
 
     // Compose all routes
     let routes = index.or(favicon)
