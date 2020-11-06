@@ -48,8 +48,7 @@ function from_runlength (b) {
 
 // Global game state
 GAME_STATE = undefined;
-
-
+CONNECTED = false;
 
 
 // SETUP
@@ -59,12 +58,19 @@ var INTERVAL;
 socket.addEventListener("open", function (ev) {
 
 
-  INTERVAL = setInterval(function() {
-    // var rand = "" + Math.random();
+  CONNECTED = true;
+
+  (function send() {
+    // console.log("ELAPSED:", elapsed(), "SIZE: ", ev.data.length);
     var rand = "*";
-    socket.send(rand);
+    setTimeout(function () {
+      socket.send(rand);
+    }, 0);
     message("sent", rand);
-  }, 1000);
+    if (CONNECTED) {
+      setTimeout(send, 33);
+    }
+  }());
 
 
   // Setup request-update-draw loop
@@ -75,6 +81,7 @@ socket.addEventListener("open", function (ev) {
 });
 
 socket.addEventListener("close", function (ev) {
+  CONNECTED = false;
   clearInterval(INTERVAL);
 });
 
@@ -83,7 +90,7 @@ socket.addEventListener("error", function (ev) {
 });
 
 socket.addEventListener("message", function (ev) {
-  // console.log("elapsed:", elapsed());
+  console.log("elapsed:", elapsed(), "size:", ev.data.length);
   message("received", ev.data.substring(100, 140) + "...");
   GAME_STATE = from_runlength(ev.data);
 });
