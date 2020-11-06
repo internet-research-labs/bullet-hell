@@ -1,38 +1,24 @@
+console.log("(>x_x)>    HE  ");
+console.log("(>x_x)>  BULLET");
+console.log("(>x_x)>        ");
+console.log("         v0.2.x");
+console.log("      bang bang");
 
-console.log("x_x");
-
-GAME_STATE = undefined;
-
-var socket = new WebSocket("ws://" + location.host + "/ws");
-
-var interval;
-
-function message(id, s) {
-  var el = document.getElementById(id);
-  el.innerHTML += s + "<br>";
-  el.scrollTo(0, el.scrollHeight);
-}
-
-socket.addEventListener("open", function (ev) {
-  interval = setInterval(function() {
-    var rand = "" + Math.random();
-    socket.send(rand);
-    message("sent", rand);
-  }, 1000);
-});
-
+// Get elapsed time
 var elapsed = (function() {
-
   var last = +new Date();
-
   return function () {
     var now = new Date();
     var dur = now-last;
-    last = now;
-    return dur;
-  };
-
+    last = now; return dur; };
 }());
+
+// Send message to div
+function message(id, s) {
+  var el = document.getElementById(id);
+  el.innerHTML = s;
+  el.scrollTo(0, el.scrollHeight);
+}
 
 // Return game state from a run-length encoded format
 function from_runlength (b) {
@@ -60,46 +46,79 @@ function from_runlength (b) {
   };
 }
 
-socket.addEventListener("message", function (ev) {
-  console.log("elapsed:", elapsed());
-  message("received", ev.data.substring(100, 140) + "...");
+// Global game state
+GAME_STATE = undefined;
+CONNECTED = false;
 
-  GAME_STATE = from_runlength(ev.data);
+
+// SETUP
+var socket = new WebSocket("ws://" + location.host + "/ws");
+var INTERVAL;
+
+socket.addEventListener("open", function (ev) {
+
+
+  CONNECTED = true;
+
+  (function send() {
+    // console.log("ELAPSED:", elapsed(), "SIZE: ", ev.data.length);
+    var rand = "*";
+    setTimeout(function () {
+      socket.send(rand);
+    }, 0);
+    message("sent", rand);
+    if (CONNECTED) {
+      setTimeout(send, 33);
+    }
+  }());
+
+
+  // Setup request-update-draw loop
+  (function loop () {
+    draw(GAME_STATE);
+    requestAnimationFrame(loop);
+  }());
 });
 
 socket.addEventListener("close", function (ev) {
-  clearInterval(interval);
+  CONNECTED = false;
+  clearInterval(INTERVAL);
 });
 
-(function loop () {
-  render_table(GAME_STATE);
-  requestAnimationFrame(loop);
-}());
+socket.addEventListener("error", function (ev) {
+  clearInterval(INTERVAL);
+});
+
+socket.addEventListener("message", function (ev) {
+  console.log("elapsed:", elapsed(), "size:", ev.data.length);
+  message("received", ev.data.substring(100, 140) + "...");
+  GAME_STATE = from_runlength(ev.data);
+});
 
 
 
-function render_table(msg) {
+function draw() {
 
-  if (!msg) {
+  if (!GAME_STATE) {
     return;
   }
 
   var el = document.getElementById("game");
   var table = document.createElement("table");
 
-  var h = msg.dims[0];
-  var w = msg.dims[1];
+  var h = GAME_STATE.dims[0];
+  var w = GAME_STATE.dims[1];
 
   function pos(i, j) {
-    return msg.grid[h*i + j];
+    return GAME_STATE.grid[h*i + j];
   }
 
-  for (var i=0; i < msg.dims[0]; i++) {
+  for (var i=0; i < GAME_STATE.dims[0]; i++) {
 
     var tr = document.createElement("tr");
     table.appendChild(tr);
 
-    for (var j=0; j < msg.dims[1]; j++) {
+    for (var j=0; j < GAME_STATE.dims[1]; j++) {
       var td = document.createElement("td");
       tr.appendChild(td);
 

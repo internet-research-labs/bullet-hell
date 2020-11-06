@@ -1,6 +1,6 @@
 [package]
-name = "whatever"
-version = "0.1.0"
+name = "bullet-hell"
+version = "0.2.0"
 authors = ["Matt <3 <not.mattowen@gmail.com>"]
 edition = "2018"
 
@@ -9,8 +9,6 @@ edition = "2018"
 [dependencies]
 futures = "0.3.7"
 rand = "0.7.3"
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
 tokio = {version="0.2", features=["full"]}
 warp = "0.2"
 

@@ -7,6 +7,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use futures::{SinkExt, StreamExt, join};
+// use futures::FutureExt; // <- Needed if we forward
+
+use tokio::sync::watch;
 use tokio::sync::mpsc as tmpsc;
 use tokio::sync::RwLock as TokioRwLock;
 use warp::Filter;
@@ -14,10 +17,17 @@ use warp::Filter;
 use gol::World as _WorldTrait;
 
 
-const DUR: std::time::Duration = std::time::Duration::from_millis(200);
+const DUR: std::time::Duration = std::time::Duration::from_millis(33);
 
 
 static UUID: AtomicI64 = AtomicI64::new(1);
+
+
+#[derive(Clone)]
+struct PlayerReq {
+    pub id: i64,
+    pub msg: String,
+}
 
 
 /// Handle user connected:
@@ -25,7 +35,7 @@ static UUID: AtomicI64 = AtomicI64::new(1);
 /// 2. Setup rx for game updates
 /// 3. Setup tx for user inputs
 /// ...
-async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<String>, users: gol::Users) {
+async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<PlayerReq>, users: gol::Users) {
 
     let uuid = UUID.fetch_add(1, Ordering::Relaxed);
 
@@ -36,35 +46,65 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<St
     println!("Connected: {}", uuid);
     users.write().await.insert(uuid, update_tx.clone());
 
-    let mut tick = since::Timer::now();
-
     // Game -> User
+    let mut tick = since::Timer::now();
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
-            if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
-                println!("Elapsed ... {}", tick.elapsed().as_millis());
-            } else {
-                eprintln!("Error!");
+            // if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
+            //
+
+            let up = result.unwrap();
+
+            // let up = warp::ws::Message::text("10:10:22,o");
+            
+            if let Err(e) = user_ws_tx.send(up).await {
+                println!("ERROR: {}", e);
             }
+
+            println!("Elapsed ... {}", tick.elapsed().as_millis());
         }
     });
 
+
+    /*
+    tokio::task::spawn(update_rx.forward(user_ws_tx).map(|result| {
+        println!("!!!");
+        // println!("Elapsed ... {}", tick.elapsed().as_millis());
+    }));
+    */
+
+    // User -> Game call + response
+
     // User -> Game
     while let Some(result) = user_ws_rx.next().await {
-        match result {
-            Ok(msg) => {
-                if let Ok(s) = msg.to_str() {
-                    if let Err(e) = to_game.send(s.to_string()) {
-                        eprintln!("Error: {}", e);
-                    }
-                } else {
-                    break;
-                };
-            },
-            Err(_) => {
+
+        let s = match result {
+            Err(e) => {
+                eprintln!("{}", e);
                 break;
             },
+            Ok(m) => {
+                m
+            },
         };
+
+        let s = match s.to_str() {
+            Err(_) => {
+                continue;
+            },
+            Ok(s) => {
+                s
+            },
+        };
+
+        let req = PlayerReq {
+            id: uuid,
+            msg: s.to_string(),
+        };
+
+        if let Err(e) = to_game.send(req) {
+            println!("Error: {}", e);
+        }
     }
 
     println!("Disconnected: {}", uuid);
@@ -79,15 +119,16 @@ fn utc_now() -> u64 {
 */
 
 /// Return an update channel for the world in a different process!
-fn world_loop() -> (tmpsc::UnboundedSender<String>, gol::Users) {
+fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Users) {
 
     let users = gol::Users::default();
 
 
     // Share between spawned processes
-    let w = gol::GameOfLife::with_size(100, 100);
+    let w = gol::GameOfLife::with_size(h, w);
+    let (world_tx, mut world_rx) = watch::channel(w.to_string());
+
     let w = Arc::new(TokioRwLock::new(w));
-    let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
 
     // Tick loop
     let w_tick = w.clone();
@@ -98,19 +139,23 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, gol::Users) {
         loop {
             let timer = std::time::Instant::now();
 
-            let up = {
+            // let up = {
+            {
                 let mut w = w_tick.write().await;
                 // ~2min
-                i = (i+1) % (5*60*2);
+                i = (i+1) % (60);
 
                 if i == 0 {
                     w.randomize();
                 }
                 w.tick();
-                w.to_string()
-            };
 
-            tx.send(up).unwrap();
+                if let Err(_) = world_tx.broadcast(w.to_string()) {
+                    // Failed
+                }
+            }
+
+            // tx.send(up).unwrap();
 
             let d = timer.elapsed();
 
@@ -120,31 +165,32 @@ fn world_loop() -> (tmpsc::UnboundedSender<String>, gol::Users) {
         }
     });
 
-    // Send to users loop
-    let u = users.clone();
-    tokio::spawn(async move {
-
-        while let Some(msg) = rx.next().await {
-            for (_, tx) in u.write().await.iter() {
-                let m = msg.clone();
-                if let Err(e) = tx.send(Ok(warp::ws::Message::text(m))) {
-                    println!("ERROR: {}", e);
-                }
-            }
-        }
-    });
-
     // Read inputs from users
-    let (tx, mut rx): (tmpsc::UnboundedSender<String>, tmpsc::UnboundedReceiver<String>) = tmpsc::unbounded_channel();
+    let (tx, mut rx): (tmpsc::UnboundedSender<PlayerReq>, tmpsc::UnboundedReceiver<PlayerReq>) = tmpsc::unbounded_channel();
     let w_update = w.clone();
     
     // Receive updates from game
+    let u = users.clone();
     tokio::spawn(async move {
-        while let Some(msg) = rx.next().await {
-            let w = w_update.write().await;
-            let m = msg.clone();
-
-            w.update(m);
+        while let Some(req) = rx.next().await {
+            match req.msg.as_str() {
+                "*" => {
+                    if let Some(up) = world_rx.recv().await {
+                        {
+                            let users = u.write().await;
+                            
+                            if let Err(_) = users[&req.id].send(Ok(warp::ws::Message::text(up))) {
+                                // Failed
+                            }
+                        }
+                    }
+                },
+                _ => {
+                    let w = w_update.write().await;
+                    let m = req.msg.clone();
+                    w.update(m);
+                },
+            }
         }
     });
 
@@ -191,7 +237,7 @@ async fn main() {
     // let w = gol::GameOfLife::with_size(100, 100);
 
     // XXX: Later use this to send updates to players + receiver updates from players
-    let (tx, users) = world_loop();
+    let (tx, users) = world_loop(40, 40);
     let usr = warp::any().map(move || users.clone());
     let com = warp::any().map(move || tx.clone());
 
