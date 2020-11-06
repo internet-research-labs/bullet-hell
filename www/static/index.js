@@ -55,6 +55,8 @@ CONNECTED = false;
 var socket = new WebSocket("ws://" + location.host + "/ws");
 var INTERVAL;
 
+socket.binaryType = "arraybuffer";
+
 socket.addEventListener("open", function (ev) {
 
 
@@ -66,18 +68,15 @@ socket.addEventListener("open", function (ev) {
     setTimeout(function () {
       socket.send(rand);
     }, 0);
+
     message("sent", rand);
+
     if (CONNECTED) {
       setTimeout(send, 33);
     }
   }());
 
 
-  // Setup request-update-draw loop
-  (function loop () {
-    draw(GAME_STATE);
-    requestAnimationFrame(loop);
-  }());
 });
 
 socket.addEventListener("close", function (ev) {
@@ -89,11 +88,20 @@ socket.addEventListener("error", function (ev) {
   clearInterval(INTERVAL);
 });
 
+var zlib = require("zlib");
+
 socket.addEventListener("message", function (ev) {
-  // console.log("elapsed:", elapsed(), "size:", ev.data.length);
-  message("received", ev.data.substring(100, 140) + "...");
-  GAME_STATE = from_runlength(ev.data);
+  var b = Buffer.from(ev.data);
+  var c = zlib.gunzipSync(b);
+  var r = from_runlength(c.toString());
+  GAME_STATE = r;
 });
+
+
+(function loop() {
+  draw(GAME_STATE);
+  requestAnimationFrame(loop);
+}());
 
 
 

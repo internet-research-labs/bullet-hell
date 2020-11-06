@@ -14,6 +14,10 @@ use tokio::sync::mpsc as tmpsc;
 use tokio::sync::RwLock as TokioRwLock;
 use warp::Filter;
 
+use std::io::prelude::*;
+use flate2::Compression;
+use flate2::write::GzEncoder;
+
 use gol::World as _WorldTrait;
 
 
@@ -180,7 +184,26 @@ fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Us
                             let users = u.write().await;
                             
                             if let Some(u) = users.get(&req.id) {
-                                if let Err(_) = u.send(Ok(warp::ws::Message::text(up))) {
+
+                                let mut v: Vec<u8>;
+                                let mut e = GzEncoder::new(Vec::new(), Compression::default());
+
+                                if let Err(_) = e.write_all(up.as_bytes()) {
+                                    continue;
+                                };
+
+                                let compressed = match e.finish() {
+                                    Ok(r) => {
+                                        r
+                                    },
+                                    Err(_) => {
+                                        continue
+                                    },
+                                };
+
+                                // println!("{} vs. {}", up.len(), compressed.len());
+
+                                if let Err(_) = u.send(Ok(warp::ws::Message::binary(compressed))) {
                                     // Failed
                                 }
                             }
