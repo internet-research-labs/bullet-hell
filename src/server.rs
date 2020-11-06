@@ -47,7 +47,7 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     users.write().await.insert(uuid, update_tx.clone());
 
     // Game -> User
-    let mut tick = since::Timer::now();
+    // let mut tick = since::Timer::now();
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
             // if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
@@ -61,7 +61,7 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
                 println!("ERROR: {}", e);
             }
 
-            println!("Elapsed ... {}", tick.elapsed().as_millis());
+            // println!("Elapsed ... {}", tick.elapsed().as_millis());
         }
     });
 
@@ -179,8 +179,10 @@ fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Us
                         {
                             let users = u.write().await;
                             
-                            if let Err(_) = users[&req.id].send(Ok(warp::ws::Message::text(up))) {
-                                // Failed
+                            if let Some(u) = users.get(&req.id) {
+                                if let Err(_) = u.send(Ok(warp::ws::Message::text(up))) {
+                                    // Failed
+                                }
                             }
                         }
                     }

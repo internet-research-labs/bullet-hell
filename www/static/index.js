@@ -90,7 +90,7 @@ socket.addEventListener("error", function (ev) {
 });
 
 socket.addEventListener("message", function (ev) {
-  console.log("elapsed:", elapsed(), "size:", ev.data.length);
+  // console.log("elapsed:", elapsed(), "size:", ev.data.length);
   message("received", ev.data.substring(100, 140) + "...");
   GAME_STATE = from_runlength(ev.data);
 });
