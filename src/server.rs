@@ -49,11 +49,11 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     users.write().await.insert(uuid, update_tx.clone());
 
     // Game -> User
-    // let mut tick = since::Timer::now();
+    let mut tick = since::Timer::now();
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
-            // if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
-            //
+
+            println!("tick => {}", tick.elapsed().as_millis());
 
             let up = result.unwrap();
 
@@ -229,17 +229,17 @@ async fn main() {
             .long("path")
             .value_name("STATIC_PATH"))
         .arg(Arg::with_name("width")
-            .short("-w")
+            .short("w")
             .value_name("WIDTH"))
         .arg(Arg::with_name("height")
-            .short("-h")
+            .short("h")
             .value_name("HEIGHT"))
         .get_matches();
 
 
-    let w = matches.value_of("w").unwrap_or("100").parse::<usize>().unwrap();
-    let h = matches.value_of("h").unwrap_or("100").parse::<usize>().unwrap();
-    let p = matches.value_of("p").unwrap_or("9004").parse::<u16>().unwrap();
+    let w = matches.value_of("width").unwrap_or("100").parse::<usize>().unwrap();
+    let h = matches.value_of("height").unwrap_or("100").parse::<usize>().unwrap();
+    let p = matches.value_of("port").unwrap_or("9004").parse::<u16>().unwrap();
     let path = matches.value_of("path").unwrap_or("www/static").to_string();
 
     println!("BULLET-HELL!");
