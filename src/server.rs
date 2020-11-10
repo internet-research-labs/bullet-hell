@@ -115,13 +115,6 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     users.write().await.remove(&uuid);
 }
 
-/*
- * XXX: Remove when not needed
-fn utc_now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap().as_millis() as u64
-}
-*/
-
 /// Return an update channel for the world in a different process!
 fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Users) {
 
@@ -251,7 +244,6 @@ async fn main() {
     }
 
     let path = args[2].parse::<String>().unwrap();
-
 
     println!("BULLET-HELL!");
     println!("============");

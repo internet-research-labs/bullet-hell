@@ -3,6 +3,9 @@ console.log("(>x_x)>  BULLET");
 console.log("(>x_x)>        ");
 console.log("         v0.2.x");
 console.log("      bang bang");
+console.log("v0.4.0");
+
+var zlib = require("zlib");
 
 // Get elapsed time
 var elapsed = (function() {
@@ -87,8 +90,6 @@ socket.addEventListener("close", function (ev) {
 socket.addEventListener("error", function (ev) {
   clearInterval(INTERVAL);
 });
-
-var zlib = require("zlib");
 
 socket.addEventListener("message", function (ev) {
   var b = Buffer.from(ev.data);

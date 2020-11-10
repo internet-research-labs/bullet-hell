@@ -1,3 +1,6 @@
+/node_modules
 /target
+/www/static/build.js
+*.LICENSE.txt
 *.swp
 *.tar.gz
