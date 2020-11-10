@@ -3,6 +3,7 @@ console.log("(>x_x)>  BULLET");
 console.log("(>x_x)>        ");
 console.log("         v0.2.x");
 console.log("      bang bang");
+console.log("v0.4.0");
 
 var zlib = require("zlib");
 
