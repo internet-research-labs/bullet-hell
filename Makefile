@@ -18,4 +18,4 @@ $(BUILD_JS): src-js/*
 	npm run build
 
 clean:
-	rm -fr target $(BUILD_JS)
+	rm -fr target $(BUILD_JS) package-lock.json Cargo.lock
