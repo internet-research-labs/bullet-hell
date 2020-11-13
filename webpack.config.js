@@ -7,6 +7,7 @@ module.exports = {
     filename: "build.js",
     path: path.resolve(__dirname, "www/static"),
   },
+  devtool: "inline-cheap-source-map",
   resolve: {
     fallback: {
       "assert": require.resolve("assert/"),
@@ -21,4 +22,5 @@ module.exports = {
       process: 'process/browser',
     }),
   ],
+  mode: "development",
 };
