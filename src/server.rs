@@ -1,14 +1,12 @@
 mod gol;
 mod since;
 mod zone;
-
-use std::env;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 use futures::{SinkExt, StreamExt, join};
-// use futures::FutureExt; // <- Needed if we forward
 
+use clap::{App, Arg};
 use tokio::sync::watch;
 use tokio::sync::mpsc as tmpsc;
 use tokio::sync::RwLock as TokioRwLock;
@@ -51,11 +49,9 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     users.write().await.insert(uuid, update_tx.clone());
 
     // Game -> User
-    // let mut tick = since::Timer::now();
+    let mut tick = since::Timer::now();
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
-            // if let Ok(_) = user_ws_tx.send(result.unwrap()).await {
-            //
 
             let up = result.unwrap();
 
@@ -178,7 +174,6 @@ fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Us
                             
                             if let Some(u) = users.get(&req.id) {
 
-                                let mut v: Vec<u8>;
                                 let mut e = GzEncoder::new(Vec::new(), Compression::default());
 
                                 if let Err(_) = e.write_all(up.as_bytes()) {
@@ -222,39 +217,42 @@ fn world_loop(h: usize, w: usize) -> (tmpsc::UnboundedSender<PlayerReq>, gol::Us
 #[tokio::main]
 async fn main() {
 
-    let args:Vec<String> = env::args().collect();
 
-    if args.len() < 3 {
-        eprintln!("len(args) != 3");
-        return;
-    }
+    let matches = App::new("bullet-hell")
+        .version("0.3.1")
+        .arg(Arg::with_name("port")
+            .short("p")
+            .value_name("PORT"))
+        .arg(Arg::with_name("path")
+            .long("path")
+            .value_name("STATIC_PATH"))
+        .arg(Arg::with_name("width")
+            .short("w")
+            .value_name("WIDTH"))
+        .arg(Arg::with_name("height")
+            .short("h")
+            .value_name("HEIGHT"))
+        .get_matches();
 
-    let p: u16;
-    let port: Result<String, _> = args[1].parse();
 
-    // XXX: Yikes! Clean this up
-    match port {
-        Ok(m) => {
-            p = m.parse::<u16>().unwrap();
-        },
-        Err(_) => {
-            println!("Fail!");
-            return;
-        },
-    }
-
-    let path = args[2].parse::<String>().unwrap();
+    let w = matches.value_of("width").unwrap_or("100").parse::<usize>().unwrap();
+    let h = matches.value_of("height").unwrap_or("100").parse::<usize>().unwrap();
+    let p = matches.value_of("port").unwrap_or("9004").parse::<u16>().unwrap();
+    let path = matches.value_of("path").unwrap_or("www/static").to_string();
 
     println!("BULLET-HELL!");
     println!("============");
-    println!("port .... {}", p);
+    println!("width .......... {}", w);
+    println!("height ......... {}", h);
+    println!("port ........... {}", p);
+    println!("static-path .... {}", path);
     println!("");
 
     // Shared between the read and write queue
     // let w = gol::GameOfLife::with_size(100, 100);
 
     // XXX: Later use this to send updates to players + receiver updates from players
-    let (tx, users) = world_loop(40, 40);
+    let (tx, users) = world_loop(h, w);
     let usr = warp::any().map(move || users.clone());
     let com = warp::any().map(move || tx.clone());
 

@@ -9,7 +9,7 @@ all:
 bundle: $(BUILD_JS) $(BULLET_HELL)
 
 run: $(BUILD_JS)
-	RUSTFLAGS="-A dead_code" cargo run 8080 www/static
+	RUSTFLAGS="-A dead_code" cargo run -- -p 8080 --path www/static -w 30 -h 30
 
 $(BULLET_HELL): src/*
 	RUSTFLAGS="-A dead_code" cargo build --bin=bullet-hell

@@ -95,6 +95,7 @@ socket.addEventListener("message", function (ev) {
   var b = Buffer.from(ev.data);
   var c = zlib.gunzipSync(b);
   var r = from_runlength(c.toString());
+  console.log("elapsed =>", elapsed());
   GAME_STATE = r;
 });
 
