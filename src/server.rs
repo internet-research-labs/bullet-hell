@@ -53,8 +53,6 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     tokio::spawn(async move {
         while let Some(result) = update_rx.next().await {
 
-            println!("tick => {}", tick.elapsed().as_millis());
-
             let up = result.unwrap();
 
             // let up = warp::ws::Message::text("10:10:22,o");

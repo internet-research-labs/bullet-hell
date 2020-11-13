@@ -101,7 +101,7 @@ socket.addEventListener("message", function (ev) {
 
 
 (function loop() {
-  // draw(GAME_STATE);
+  draw(GAME_STATE);
   requestAnimationFrame(loop);
 }());
 
