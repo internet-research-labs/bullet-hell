@@ -1,9 +1,13 @@
-console.log("(>x_x)>    HE  ");
-console.log("(>x_x)>  BULLET");
-console.log("(>x_x)>        ");
-console.log("         v0.2.x");
-console.log("      bang bang");
-console.log("v0.4.0");
+console.log("bullet hell v0.4.0");
+
+import {App} from "./world.js";
+
+
+window.addEventListener("load", function () {
+  let el = document.getElementById("game");
+  let app = new App(el);
+  app.draw();
+});
 
 var zlib = require("zlib");
 
@@ -50,8 +54,8 @@ function from_runlength (b) {
 }
 
 // Global game state
-GAME_STATE = undefined;
-CONNECTED = false;
+let GAME_STATE = undefined;
+let CONNECTED = false;
 
 
 // SETUP
@@ -95,19 +99,21 @@ socket.addEventListener("message", function (ev) {
   var b = Buffer.from(ev.data);
   var c = zlib.gunzipSync(b);
   var r = from_runlength(c.toString());
-  console.log("elapsed =>", elapsed());
+  // console.log("elapsed =>", elapsed());
   GAME_STATE = r;
 });
 
 
 (function loop() {
-  draw(GAME_STATE);
+  // draw(GAME_STATE);
   requestAnimationFrame(loop);
 }());
 
 
 
 function draw() {
+
+  console.log(">>", GAME_STATE);
 
   if (!GAME_STATE) {
     return;
