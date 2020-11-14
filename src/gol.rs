@@ -1,13 +1,7 @@
+use crate::conceptual;
+
 use rand::Rng;
-use std::collections::HashMap;
-use std::sync::Arc;
 use std::vec::Vec;
-
-use tokio::sync::RwLock;
-use tokio::sync::mpsc;
-
-pub type UpdateSender = mpsc::UnboundedSender<Result<warp::ws::Message, warp::Error>>;
-pub type Users = Arc<RwLock<HashMap<i64, UpdateSender>>>;
 
 pub struct GameOfLife {
     grid: Vec<bool>,
@@ -77,59 +71,9 @@ impl GameOfLife {
     fn pos(&self, i: usize, j: usize) -> usize {
         return self.dims.0*i + j;
     }
-
-    /// Return the GOL as a json-string.
-    pub fn to_string(&self) -> String {
-
-
-
-        let mut c = '?';
-        let mut s = String::from("");
-        s.push_str(format!("{}:{}", self.dims.0, self.dims.1).as_str());
-
-        let mut run = 1;
-        let mut last = self.grid[0];
-
-        for i in 1..self.grid.len() {
-
-            let curr = self.grid[i];
-
-            c = if last {
-                'o'
-            } else {
-                'x'
-            };
-
-            if curr != last {
-
-                s.push_str(format!(":{},{}", run, c).as_str());
-                last = curr;
-                run = 1;
-            } else {
-                run = run + 1;
-            }
-        }
-
-        s.push_str(format!(":{},{}", run, c).as_str());
-
-
-
-        /*
-        for i in 0..self.grid.len() {
-            s.push(':');
-            if self.grid[i] {
-                s.push('1');
-            } else {
-                s.push('0');
-            }
-        }
-        */
-
-        s
-    }
 }
 
-impl World for GameOfLife {
+impl conceptual::World for GameOfLife {
 
     fn update(&self, _: String) {
         // no-op
@@ -171,14 +115,45 @@ impl World for GameOfLife {
             }
         }
     }
-}
 
-/// World is an initial janky implementation. The likely best trait just exposes a transmitter mpsc
-/// object so that upstream systems can async publish things.
-pub trait World {
-    /// Update with some information from the outside world.
-    fn update(&self, _: String);
+    /// Return the GOL as a json-string.
+    fn to_string(&self) -> String {
 
-    /// 
-    fn tick(&mut self);
+
+
+        let mut c = '?';
+        let mut s = String::from("");
+        s.push_str(format!("{}:{}", self.dims.0, self.dims.1).as_str());
+
+        let mut run = 1;
+        let mut last = self.grid[0];
+
+        for i in 1..self.grid.len() {
+
+            let curr = self.grid[i];
+
+            c = if last {
+                'o'
+            } else {
+                'x'
+            };
+
+            if curr != last {
+
+                s.push_str(format!(":{},{}", run, c).as_str());
+                last = curr;
+                run = 1;
+            } else {
+                run = run + 1;
+            }
+        }
+
+        s.push_str(format!(":{},{}", run, c).as_str());
+
+        s
+    }
+
+    fn reset(&mut self) {
+        self.randomize();
+    }
 }

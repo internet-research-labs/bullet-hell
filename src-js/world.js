@@ -16,7 +16,7 @@ export class App {
       "Camera",
       -Math.PI/1.5,
       +Math.PI/3,
-      2,
+      10,
       new Vector3(0, 0, 0),
       this.scene,
     );
@@ -30,6 +30,14 @@ export class App {
     let box = MeshBuilder.CreateBox(
       "box",
       {},
+      this.scene,
+    );
+
+    box.position.y = 0.5;
+
+    const plane = MeshBuilder.CreateGround(
+      "plane",
+      {width: 10, height: 10},
       this.scene,
     );
   }
