@@ -2,11 +2,11 @@ console.log("bullet hell v0.4.0");
 
 import {App} from "./world.js";
 
+var APP = undefined;
 
 window.addEventListener("load", function () {
   let el = document.getElementById("game");
-  let app = new App(el);
-  app.draw();
+  APP = new App(el);
 });
 
 var zlib = require("zlib");
@@ -66,11 +66,9 @@ socket.binaryType = "arraybuffer";
 
 socket.addEventListener("open", function (ev) {
 
-
   CONNECTED = true;
 
   (function send() {
-    // console.log("ELAPSED:", elapsed(), "SIZE: ", ev.data.length);
     var rand = "*";
     setTimeout(function () {
       socket.send(rand);
@@ -82,8 +80,6 @@ socket.addEventListener("open", function (ev) {
       setTimeout(send, 33);
     }
   }());
-
-
 });
 
 socket.addEventListener("close", function (ev) {
@@ -98,52 +94,40 @@ socket.addEventListener("error", function (ev) {
 socket.addEventListener("message", function (ev) {
   var b = Buffer.from(ev.data);
   var c = zlib.gunzipSync(b);
-  var r = from_runlength(c.toString());
-  GAME_STATE = r;
+  var d = c.toString();
+  let updates = get_state(d);
+
+  updates.forEach((v, _) => {
+    APP.update(v)
+  });
 });
+
+function process(blob) {
+  let pieces = blob.split(",");
+  if (pieces.length != 5) {
+    return undefined;
+  }
+  return {
+    id: pieces[0],
+    pos: {x: pieces[1], y: pieces[2]},
+    dir: {x: pieces[3], y: pieces[4]},
+  };
+}
+
+// Return the state
+function get_state(s) {
+  let res = [];
+  s.split(":").forEach((v, _) => {
+    let up = process(v);
+    res.push(up);
+  });
+  return res;
+}
 
 
 (function loop() {
-  // draw(GAME_STATE);
+  if (!!APP) {
+    APP.draw();
+  }
   requestAnimationFrame(loop);
 }());
-
-
-
-function draw() {
-
-  console.log(">>", GAME_STATE);
-
-  if (!GAME_STATE) {
-    return;
-  }
-
-  var el = document.getElementById("game");
-  var table = document.createElement("table");
-
-  var h = GAME_STATE.dims[0];
-  var w = GAME_STATE.dims[1];
-
-  function pos(i, j) {
-    return GAME_STATE.grid[h*i + j];
-  }
-
-  for (var i=0; i < GAME_STATE.dims[0]; i++) {
-
-    var tr = document.createElement("tr");
-    table.appendChild(tr);
-
-    for (var j=0; j < GAME_STATE.dims[1]; j++) {
-      var td = document.createElement("td");
-      tr.appendChild(td);
-
-      td.className = pos(i, j) == 1 ? "alive" : "dead";
-    }
-  }
-
-  while (el.firstChild) {
-    el.removeChild(el.firstChild);
-  }
-
-  el.appendChild(table);
-}

@@ -8,3 +8,15 @@ pub trait World {
 pub trait WorldState {
     fn local_state();
 }
+
+#[derive(Clone)]
+pub struct UpdateReq {
+    pub id: i64,
+    pub msg: String,
+}
+
+pub enum PlayerReq {
+    Nothing,
+    Fetch,
+    Update(UpdateReq),
+}

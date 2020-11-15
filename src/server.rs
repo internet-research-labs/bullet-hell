@@ -1,4 +1,5 @@
 mod gol;
+mod shooter;
 mod since;
 mod zone;
 
@@ -19,6 +20,8 @@ use std::io::prelude::*;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 
+use conceptual::PlayerReq;
+
 const DUR: std::time::Duration = std::time::Duration::from_millis(33);
 
 
@@ -30,13 +33,6 @@ use tokio::sync::RwLock;
 use tokio::sync::mpsc;
 pub type UpdateSender = mpsc::UnboundedSender<Result<warp::ws::Message, warp::Error>>;
 pub type Users = Arc<RwLock<HashMap<i64, UpdateSender>>>;
-
-
-#[derive(Clone)]
-struct PlayerReq {
-    pub id: i64,
-    pub msg: String,
-}
 
 
 /// Handle user connected:
@@ -71,6 +67,7 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
     });
 
     // User -> Game
+    //
     while let Some(result) = user_ws_rx.next().await {
 
         let s = match result {
@@ -92,10 +89,10 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
             },
         };
 
-        let req = PlayerReq {
+        let req = PlayerReq::Update(conceptual::UpdateReq{
             id: uuid,
             msg: s.to_string(),
-        };
+        });
 
         if let Err(e) = to_game.send(req) {
             println!("Error: {}", e);
@@ -104,6 +101,27 @@ async fn connect(socket: warp::ws::WebSocket, to_game: tmpsc::UnboundedSender<Pl
 
     println!("Disconnected: {}", uuid);
     users.write().await.remove(&uuid);
+}
+
+/// Return compressed binary of string.
+fn compress(s: String) -> Vec<u8> {
+
+    let mut e = GzEncoder::new(Vec::new(), Compression::default());
+
+    if let Err(_) = e.write_all(s.as_bytes()) {
+        return Vec::new();
+    };
+
+    let compressed = match e.finish() {
+        Ok(r) => {
+            r
+        },
+        Err(_) => {
+            return Vec::new();
+        },
+    };
+
+    compressed
 }
 
 /// Return an update channel for the world in a different process!
@@ -159,42 +177,35 @@ fn world_loop(w: (impl conceptual::World + Send + Sync + 'static)) -> (tmpsc::Un
     let u = users.clone();
     tokio::spawn(async move {
         while let Some(req) = rx.next().await {
-            match req.msg.as_str() {
-                "*" => {
-                    if let Some(up) = world_rx.recv().await {
-                        {
-                            let users = u.write().await;
-                            
-                            if let Some(u) = users.get(&req.id) {
+            match req {
+                PlayerReq::Update(req) => {
+                    match req.msg.as_str() {
+                        "*" => {
+                            if let Some(up) = world_rx.recv().await {
+                                {
+                                    let users = u.write().await;
+                                    
+                                    if let Some(u) = users.get(&req.id) {
 
-                                let mut e = GzEncoder::new(Vec::new(), Compression::default());
+                                        let compressed = compress(up);
 
-                                if let Err(_) = e.write_all(up.as_bytes()) {
-                                    continue;
-                                };
-
-                                let compressed = match e.finish() {
-                                    Ok(r) => {
-                                        r
-                                    },
-                                    Err(_) => {
-                                        continue
-                                    },
-                                };
-
-                                // println!("{} vs. {}", up.len(), compressed.len());
-
-                                if let Err(_) = u.send(Ok(warp::ws::Message::binary(compressed))) {
-                                    // Failed
+                                        if let Err(_) = u.send(Ok(warp::ws::Message::binary(compressed))) {
+                                            // Failed
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        },
+                        _ => {
+                            println!("*** Non-* message received");
+                            let w = w_update.write().await;
+                            let m = req.msg.clone();
+                            w.update(m);
+                        },
                     }
                 },
                 _ => {
-                    let w = w_update.write().await;
-                    let m = req.msg.clone();
-                    w.update(m);
+                    println!("*** NOT IMPLEMENTED MESSAGE RECEIVED");
                 },
             }
         }
@@ -209,7 +220,6 @@ fn world_loop(w: (impl conceptual::World + Send + Sync + 'static)) -> (tmpsc::Un
 
 #[tokio::main]
 async fn main() {
-
 
     let matches = App::new("bullet-hell")
         .version("0.3.1")
@@ -227,7 +237,6 @@ async fn main() {
             .value_name("HEIGHT"))
         .get_matches();
 
-
     let w = matches.value_of("width").unwrap_or("100").parse::<usize>().unwrap();
     let h = matches.value_of("height").unwrap_or("100").parse::<usize>().unwrap();
     let p = matches.value_of("port").unwrap_or("9004").parse::<u16>().unwrap();
@@ -241,17 +250,13 @@ async fn main() {
     println!("static-path .... {}", path);
     println!("");
 
-    // Shared between the read and write queue
-    // let w = gol::GameOfLife::with_size(100, 100);
-
     // XXX: Later use this to send updates to players + receiver updates from players
-    let w = gol::GameOfLife::with_size(h, w);
+    let w = shooter::with_size(1000, 1000);
     let (tx, users) = world_loop(w);
     let usr = warp::any().map(move || users.clone());
     let com = warp::any().map(move || tx.clone());
 
     let q = path.clone();
-    println!("{}", q);
     let index = warp::path::end()
         .and(warp::fs::file(q + "/index.html"));
 
@@ -279,7 +284,5 @@ async fn main() {
     let server = warp::serve(routes)
         .run(([0, 0, 0, 0], p));
 
-    join!(
-        server,
-    );
+    join!(server);
 }

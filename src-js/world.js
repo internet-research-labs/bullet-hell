@@ -6,20 +6,29 @@ import {
   HemisphericLight,
   Mesh,
   MeshBuilder,
+  TransformNode,
 } from "@babylonjs/core";
+
+import * as BABYLON from "@babylonjs/core";
 
 export class App {
   constructor(el) {
+
+    // List of players
+    this.players = {};
+
     let engine = new Engine(el, true);
     this.scene = new Scene(engine);
     let camera = new ArcRotateCamera(
-      "Camera",
-      -Math.PI/1.5,
-      +Math.PI/3,
-      10,
+      "camera",
+      0,
+      0,
+      0,
       new Vector3(0, 0, 0),
       this.scene,
     );
+
+    camera.setPosition(new Vector3(0, 50, -250));
 
     let light = new HemisphericLight(
       "light",
@@ -27,22 +36,37 @@ export class App {
       this.scene,
     );
 
-    let box = MeshBuilder.CreateBox(
-      "box",
-      {},
-      this.scene,
-    );
-
-    box.position.y = 0.5;
-
     const plane = MeshBuilder.CreateGround(
       "plane",
-      {width: 10, height: 10},
+      {width: 200, height: 200},
       this.scene,
     );
+
+    this.shipMaterial = new BABYLON.StandardMaterial("ship", this.scene);
+    this.shipMaterial.disableLighting = true;
+    this.shipMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
   }
 
-  update() {
+  updatePlayer({id, pos}) {
+    let player = this.players.hasOwnProperty(id) ? this.players[id] : false;
+
+    if (!player) {
+      player = MeshBuilder.CreateBox(
+        "PLAYER:"+id,
+        {width: 3, height: 3},
+        this.scene,
+      );
+      player.material = this.shipMaterial;
+      player = this.players[id] = player;
+    }
+
+    player.position.x = pos.x;
+    player.position.y = 6;
+    player.position.z = pos.y;
+  }
+
+  update(obj) {
+    this.updatePlayer(obj);
   }
 
   draw() {
