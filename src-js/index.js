@@ -3,6 +3,7 @@ console.log("bullet hell v0.4.0");
 import {App} from "./world.js";
 
 var APP = undefined;
+var SERVER_TIME = undefined;
 
 window.addEventListener("load", function () {
   let el = document.getElementById("game");
@@ -77,7 +78,7 @@ socket.addEventListener("open", function (ev) {
     message("sent", rand);
 
     if (CONNECTED) {
-      setTimeout(send, 33);
+      setTimeout(send, 1000);
     }
   }());
 });
@@ -96,6 +97,8 @@ socket.addEventListener("message", function (ev) {
   var c = zlib.gunzipSync(b);
   var d = c.toString();
   let updates = get_state(d);
+
+  document.getElementById("clock").innerHTML = SERVER_TIME;
 
   updates.forEach((v, _) => {
     APP.update(v)
@@ -117,7 +120,9 @@ function process(blob) {
 // Return the state
 function get_state(s) {
   let res = [];
-  s.split(":").forEach((v, _) => {
+  let [server_time, ships] = s.split("::");
+  SERVER_TIME = server_time;
+  ships.split(":").forEach((v, _) => {
     let up = process(v);
     res.push(up);
   });

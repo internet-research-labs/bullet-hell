@@ -1,6 +1,7 @@
 use crate::conceptual;
 
 use std::collections::HashMap;
+use std::time;
 
 
 #[derive(Clone)]
@@ -23,6 +24,7 @@ pub struct Shooter {
     h: usize,
     w: usize,
     ships: HashMap<usize, Player>,
+    timestamp: time::SystemTime,
 }
 
 
@@ -43,14 +45,25 @@ impl conceptual::World for Shooter {
                 -100
             };
         }
+        self.timestamp = time::SystemTime::now();
     }
 
     fn to_string(&self) -> String {
-        if let Some(ship) = self.ships.get(&10) {
-            ship.to_string()
+
+        let mut s = String::from("");
+        
+        if let Ok(dur) = self.timestamp.duration_since(time::UNIX_EPOCH) {
+            s.push_str(&dur.as_millis().to_string());
+            s.push_str("::");
         } else {
-            "".to_string()
+            s.push_str("...");
         }
+
+        if let Some(ship) = self.ships.get(&10) {
+            s.push_str(&ship.to_string())
+        }
+
+        s
     }
 
     fn reset(&mut self) {
@@ -68,5 +81,6 @@ pub fn with_size(h: usize, w: usize) -> Shooter {
         h: h,
         w: w,
         ships: ships,
+        timestamp: time::SystemTime::now(),
     }
 }
