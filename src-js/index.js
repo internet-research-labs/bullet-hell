@@ -110,6 +110,7 @@ function process(blob) {
   if (pieces.length != 5) {
     return undefined;
   }
+  pieces = pieces.map(v => parseFloat(v));
   return {
     id: pieces[0],
     pos: {x: pieces[1], y: pieces[2]},
@@ -132,6 +133,7 @@ function get_state(s) {
 
 (function loop() {
   if (!!APP) {
+    APP.tick();
     APP.draw();
   }
   requestAnimationFrame(loop);

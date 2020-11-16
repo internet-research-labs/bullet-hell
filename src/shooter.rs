@@ -9,13 +9,15 @@ pub struct Player {
     id: usize,
     x: isize,
     y: isize,
+    dx: f64,
+    dy: f64,
 }
 
 impl Player {
     pub fn to_string(&self) -> String {
         format!(
-            "{},{},{},-1,-1",
-            10, self.x, self.y,
+            "{},{},{},{},{}",
+            10, self.x, self.y, self.dx, self.dy,
         ).to_string()
     }
 }
@@ -75,7 +77,7 @@ pub fn with_size(h: usize, w: usize) -> Shooter {
     let mut ships = HashMap::new();
     ships.insert(
         id,
-        Player{id: id, x: 0, y: 0},
+        Player{id: id, x: 0, y: 0, dx: 0.1, dy: 0.1},
     );
     Shooter{
         h: h,

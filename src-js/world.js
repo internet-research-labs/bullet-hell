@@ -15,7 +15,7 @@ export class App {
   constructor(el) {
 
     // List of players
-    this.players = {};
+    this.players = new Map();
 
     let engine = new Engine(el, true);
     this.scene = new Scene(engine);
@@ -47,26 +47,45 @@ export class App {
     this.shipMaterial.emissiveColor = new BABYLON.Color3(0, 1, 1);
   }
 
-  updatePlayer({id, pos}) {
-    let player = this.players.hasOwnProperty(id) ? this.players[id] : false;
+  updatePlayer(obj) {
+    let {id, pos, dir} = obj;
+    let player = this.players.has(id) ? this.players.get(id) : false;
 
     if (!player) {
-      player = MeshBuilder.CreateBox(
+      let mesh = MeshBuilder.CreateBox(
         "PLAYER:"+id,
         {width: 3, height: 3},
         this.scene,
       );
-      player.material = this.shipMaterial;
-      player = this.players[id] = player;
+
+      player = {
+        mesh: mesh,
+        meta: obj,
+      };
+
+      player.mesh.material = this.shipMaterial;
+      this.players.set(id, player);
     }
 
-    player.position.x = pos.x;
-    player.position.y = 6;
-    player.position.z = pos.y;
+    player.mesh.position.x = pos.x;
+    player.mesh.position.y = 6.0;
+    player.mesh.position.z = pos.y;
+
+    player.meta = obj;
   }
 
   update(obj) {
     this.updatePlayer(obj);
+  }
+
+  tick() {
+
+    // Replace this with "tick"
+    this.players.forEach(v => {
+      v.mesh.position.x += v.meta.dir.x;
+      v.mesh.position.y += 0.0;
+      v.mesh.position.z += v.meta.dir.y;
+    });
   }
 
   draw() {
